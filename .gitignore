@@ -55,4 +55,9 @@ build/app/outputs/flutter-apk/
 build/app/outputs/logs/
 build/app/tmp/
 build/ca33f282d90356a564f3e3da52c97351.cache.dill.track.dill
+build/reports/problems/problems-report.html
+pubspec.lock
+windows/flutter/generated_plugin_registrant.cc
+windows/flutter/generated_plugins.cmake
+
 
