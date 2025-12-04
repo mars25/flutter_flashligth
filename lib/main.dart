@@ -96,6 +96,28 @@ class MyHomePage extends StatefulWidget {
 
 class _MyHomePageState extends State<MyHomePage> {
   int _counter = 0;
+  bool _isFlashOn = false;
+
+  Future<void> _toggleFlashLight() async {
+    try {
+      if (_isFlashOn) {
+        await TorchLight.disableTorch();
+      } else {
+        await TorchLight.enableTorch();
+      }
+      if (!mounted) return;
+      setState(() {
+        _isFlashOn = !_isFlashOn;
+      });
+    } catch (e) {
+      // ignore: avoid_print
+      print('error toggling flashlight: $e');
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Flashlight not available')),
+      );
+    }
+  }
 
   void _incrementCounter() {
     setState(() {
@@ -153,10 +175,23 @@ class _MyHomePageState extends State<MyHomePage> {
           ],
         ),
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _incrementCounter,
-        tooltip: 'Increment',
-        child: const Icon(Icons.add),
+      floatingActionButton: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          FloatingActionButton(
+            heroTag: 'increment',
+            onPressed: _incrementCounter,
+            tooltip: 'Increment',
+            child: const Icon(Icons.add),
+          ),
+          const SizedBox(height: 12),
+          FloatingActionButton(
+            heroTag: 'flash',
+            onPressed: _toggleFlashLight,
+            tooltip: 'Toggle flashlight',
+            child: Icon(_isFlashOn ? Icons.flash_on : Icons.flash_off),
+          ),
+        ],
       ),
     );
   }
