@@ -38,6 +38,7 @@ app.*.map.json
 # Allow debug APK(s) from build outputs
 !/build/app/outputs/apk/debug/app-debug.apk
 !/build/app/outputs/apk/debug/output-metadata.json
+!/build/permission_handler_android/.transforms/cd3a00e45fd249027642130714e3ed35/transformed/bundleLibRuntimeToDirDebug/bundleLibRuntimeToDirDebug_dex/com/baseflow/permissionhandler/
 
 
 # Flutter & Dart
