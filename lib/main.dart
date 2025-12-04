@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:torch_light/torch_light.dart';
+import 'package:permission_handler/permission_handler.dart';
 
 void main() {
   runApp(const TrainingApp());
@@ -100,11 +101,25 @@ class _MyHomePageState extends State<MyHomePage> {
 
   Future<void> _toggleFlashLight() async {
     try {
+      // Ensure camera permission is granted before toggling torch
+      final status = await Permission.camera.status;
+      if (!status.isGranted) {
+        final result = await Permission.camera.request();
+        if (!result.isGranted) {
+          if (!mounted) return;
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+            content: Text('Camera permission required to use flashlight'),
+          ));
+          return;
+        }
+      }
+
       if (_isFlashOn) {
         await TorchLight.disableTorch();
       } else {
         await TorchLight.enableTorch();
       }
+
       if (!mounted) return;
       setState(() {
         _isFlashOn = !_isFlashOn;
