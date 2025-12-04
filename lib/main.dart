@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:torch_light/torch_light.dart';
+import 'package:speech_to_text/speech_to_text.dart';
 import 'package:permission_handler/permission_handler.dart';
 
 void main() {
@@ -45,34 +46,10 @@ class TrainingApp extends StatefulWidget {
 }
 
 class _TrainingAppState extends State<TrainingApp> {
-  bool _isFlashOn = false;
-
-  Future<void> _toggleFlashLight() async {
-    try {
-      if (_isFlashOn) {
-        await TorchLight.disableTorch();
-      } else {
-        await TorchLight.enableTorch();
-      }
-      setState(() {
-        _isFlashOn = !_isFlashOn;
-      });
-    } catch (e) {
-      // Log error and show user feedback
-      // ignore: avoid_print
-      print('error toggling flashlight: $e');
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Flashlight not available now'),
-        ),
-      );
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
+      theme: ThemeData(colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple)),
       home: const MyHomePage(title: 'Flutter Demo Home Page'),
     );
   }
@@ -98,12 +75,15 @@ class MyHomePage extends StatefulWidget {
 class _MyHomePageState extends State<MyHomePage> {
   int _counter = 0;
   bool _isFlashOn = false;
+  final SpeechToText _speechToText = SpeechToText();
+  bool _speechEnabled = false;
+  String _lastWords = '';
+  bool _isListening = false;
 
   Future<void> _toggleFlashLight() async {
     try {
       // Ensure camera permission is granted before toggling torch
-      final status = await Permission.camera.status;
-      if (!status.isGranted) {
+      if (!await Permission.camera.isGranted) {
         final result = await Permission.camera.request();
         if (!result.isGranted) {
           if (!mounted) return;
@@ -143,6 +123,42 @@ class _MyHomePageState extends State<MyHomePage> {
       // called again, and so nothing would appear to happen.
       _counter++;
     });
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _initSpeech();
+  }
+
+  /// This has to happen only once per app
+  void _initSpeech() async {
+    _speechEnabled = await _speechToText.initialize();
+    setState(() {});
+  }
+
+  /// Each time to start a speech recognition session
+  void _startListening() async {
+    if (!_speechEnabled) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text('The user has denied the use of speech recognition.'),
+      ));
+      return;
+    }
+    await _speechToText.listen(onResult: (result) {
+      setState(() {
+        _lastWords = result.recognizedWords;
+      });
+    });
+    setState(() {
+      _isListening = true;
+    });
+  }
+
+  /// Manually stop the active speech recognition session
+  void _stopListening() async {
+    await _speechToText.stop();
+    setState(() => _isListening = false);
   }
 
   @override
@@ -187,6 +203,17 @@ class _MyHomePageState extends State<MyHomePage> {
               '$_counter',
               style: Theme.of(context).textTheme.headlineMedium,
             ),
+            const SizedBox(height: 20),
+            Text(
+              'Recognized words:',
+              style: Theme.of(context).textTheme.titleLarge,
+            ),
+            Expanded(
+              child: Container(
+                padding: const EdgeInsets.all(16),
+                child: Text(_lastWords.isEmpty ? 'Tap the microphone to start listening...' : _lastWords),
+              ),
+            ),
           ],
         ),
       ),
@@ -205,6 +232,13 @@ class _MyHomePageState extends State<MyHomePage> {
             onPressed: _toggleFlashLight,
             tooltip: 'Toggle flashlight',
             child: Icon(_isFlashOn ? Icons.flash_on : Icons.flash_off),
+          ),
+          const SizedBox(height: 12),
+          FloatingActionButton(
+            heroTag: 'mic',
+            onPressed: _isListening ? _stopListening : _startListening,
+            tooltip: 'Listen',
+            child: Icon(_isListening ? Icons.mic_off : Icons.mic),
           ),
         ],
       ),

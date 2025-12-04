@@ -8,7 +8,6 @@ A simple yet functional Flutter application that controls the device's flashligh
 - 🎨 Dynamic UI that changes based on flashlight state (background color, app bar color, icon).
 - 🛡️ Error handling and user feedback via `SnackBar`.
 - 📱 Tested on Samsung Galaxy A34 (Android 15, API 35).
-- 🔐 Signed APK/AAB ready for Google Play Store publication.
 
 ## Project Structure
 
