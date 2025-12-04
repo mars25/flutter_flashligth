@@ -1,7 +1,7 @@
 # Miscellaneous
-*.class
-*.log
-*.pyc
+# *.class
+# *.log
+# *.pyc
 *.swp
 .DS_Store
 .atom/
@@ -35,4 +35,24 @@ app.*.map.json
 /android/app/profile
 /android/app/release
 
+# Allow debug APK(s) from build outputs
+!/build/app/outputs/apk/debug/app-debug.apk
+!/build/app/outputs/apk/debug/output-metadata.json
+
+
+# Flutter & Dart
+.dart_tool/
+
+# Build outputs
+build/.cxx/
+build/.last_build_id
+build/151be87b5948334171a20c4eae6d3685/
+build/app/deeplink.json
+build/app/intermediates/
+build/app/kotlin/
+build/app/outputs/apk/debug/output-metadata.json
+build/app/outputs/flutter-apk/
+build/app/outputs/logs/
+build/app/tmp/
+build/ca33f282d90356a564f3e3da52c97351.cache.dill.track.dill
 
