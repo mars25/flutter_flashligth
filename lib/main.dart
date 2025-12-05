@@ -1,7 +1,11 @@
+import 'dart:io';
+
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:torch_light/torch_light.dart';
 import 'package:speech_to_text/speech_to_text.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:video_player/video_player.dart';
 
 void main() {
   runApp(const TrainingApp());
@@ -79,6 +83,9 @@ class _MyHomePageState extends State<MyHomePage> {
   bool _speechEnabled = false;
   String _lastWords = '';
   bool _isListening = false;
+  bool _isPermissionGranted = false;
+  VideoPlayerController? _videoPlayerController;
+  File? _videoFile;
 
   Future<void> _toggleFlashLight() async {
     try {
@@ -116,46 +123,88 @@ class _MyHomePageState extends State<MyHomePage> {
 
   void _incrementCounter() {
     setState(() {
-      // This call to setState tells the Flutter framework that something has
-      // changed in this State, which causes it to rerun the build method below
-      // so that the display can reflect the updated values. If we changed
-      // _counter without calling setState(), then the build method would not be
-      // called again, and so nothing would appear to happen.
       _counter++;
     });
+  }
+
+  Future<void> _pickVideo() async {
+    final result = await FilePicker.platform.pickFiles(type: FileType.video);
+    if (result == null) return;
+
+    _videoFile = File(result.files.single.path!);
+    _videoPlayerController?.dispose();
+    _videoPlayerController = VideoPlayerController.file(_videoFile!)
+      ..initialize().then((_) {
+        setState(() {});
+        _videoPlayerController!.play();
+      });
+  }
+
+  @override
+  void dispose() {
+    _videoPlayerController?.dispose();
+    super.dispose();
   }
 
   @override
   void initState() {
     super.initState();
-    _initSpeech();
+    _checkPermission();
   }
 
-  /// This has to happen only once per app
+  Future<void> _checkPermission() async {
+    final status = await Permission.microphone.status;
+    if (status == PermissionStatus.granted) {
+      setState(() {
+        _isPermissionGranted = true;
+      });
+    }
+  }
+  
   void _initSpeech() async {
-    _speechEnabled = await _speechToText.initialize();
+    _speechEnabled = await _speechToText.initialize(
+      debugLogging: true,
+    );
     setState(() {});
   }
 
-  /// Each time to start a speech recognition session
   void _startListening() async {
-    if (!_speechEnabled) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-        content: Text('The user has denied the use of speech recognition.'),
-      ));
-      return;
-    }
-    await _speechToText.listen(onResult: (result) {
+    if (!_isPermissionGranted) {
+      final status = await Permission.microphone.request();
+      if (status != PermissionStatus.granted) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Microphone permission is required to use speech recognition.'),
+        ));
+        return;
+      }
       setState(() {
-        _lastWords = result.recognizedWords;
+        _isPermissionGranted = true;
       });
-    });
-    setState(() {
-      _isListening = true;
-    });
+    }
+
+    if (!_speechEnabled) {
+      _initSpeech();
+    }
+    
+    if (_speechEnabled) {
+      await _speechToText.listen(
+        onResult: (result) {
+          setState(() {
+            _lastWords = result.recognizedWords;
+          });
+        },
+        localeId: 'es-ES',
+        onDevice: false,
+        listenFor: const Duration(seconds: 30),
+        pauseFor: const Duration(seconds: 5),
+      );
+      setState(() {
+        _isListening = true;
+      });
+    }
   }
 
-  /// Manually stop the active speech recognition session
   void _stopListening() async {
     await _speechToText.stop();
     setState(() => _isListening = false);
@@ -163,41 +212,20 @@ class _MyHomePageState extends State<MyHomePage> {
 
   @override
   Widget build(BuildContext context) {
-    // This method is rerun every time setState is called, for instance as done
-    // by the _incrementCounter method above.
-    //
-    // The Flutter framework has been optimized to make rerunning build methods
-    // fast, so that you can just rebuild anything that needs updating rather
-    // than having to individually change instances of widgets.
     return Scaffold(
       appBar: AppBar(
-        // TRY THIS: Try changing the color here to a specific color (to
-        // Colors.amber, perhaps?) and trigger a hot reload to see the AppBar
-        // change color while the other colors stay the same.
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
-        // Here we take the value from the MyHomePage object that was created by
-        // the App.build method, and use it to set our appbar title.
         title: Text(widget.title),
       ),
       body: Center(
-        // Center is a layout widget. It takes a single child and positions it
-        // in the middle of the parent.
         child: Column(
-          // Column is also a layout widget. It takes a list of children and
-          // arranges them vertically. By default, it sizes itself to fit its
-          // children horizontally, and tries to be as tall as its parent.
-          //
-          // Column has various properties to control how it sizes itself and
-          // how it positions its children. Here we use mainAxisAlignment to
-          // center the children vertically; the main axis here is the vertical
-          // axis because Columns are vertical (the cross axis would be
-          // horizontal).
-          //
-          // TRY THIS: Invoke "debug painting" (choose the "Toggle Debug Paint"
-          // action in the IDE, or press "p" in the console), to see the
-          // wireframe for each widget.
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
+            if (_videoPlayerController != null && _videoPlayerController!.value.isInitialized)
+              AspectRatio(
+                aspectRatio: _videoPlayerController!.value.aspectRatio,
+                child: VideoPlayer(_videoPlayerController!),
+              ),
             const Text('You have pushed the button this many times:'),
             Text(
               '$_counter',
@@ -239,6 +267,29 @@ class _MyHomePageState extends State<MyHomePage> {
             onPressed: _isListening ? _stopListening : _startListening,
             tooltip: 'Listen',
             child: Icon(_isListening ? Icons.mic_off : Icons.mic),
+          ),
+          const SizedBox(height: 12),
+          FloatingActionButton(
+            heroTag: 'video',
+            onPressed: _pickVideo,
+            tooltip: 'Pick Video',
+            child: const Icon(Icons.video_library),
+          ),
+          if (_videoPlayerController != null && _videoPlayerController!.value.isInitialized)
+          FloatingActionButton(
+            heroTag: 'play-pause',
+            onPressed: () {
+              setState(() {
+                if (_videoPlayerController!.value.isPlaying) {
+                  _videoPlayerController!.pause();
+                } else {
+                  _videoPlayerController!.play();
+                }
+              });
+            },
+            child: Icon(
+              _videoPlayerController!.value.isPlaying ? Icons.pause : Icons.play_arrow,
+            ),
           ),
         ],
       ),
